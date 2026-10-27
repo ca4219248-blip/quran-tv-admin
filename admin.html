@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quran TV — Admin Panel</title>
+<style>
+  :root {
+    --primary: #0F4C3A;
+    --primary-light: #1a6b52;
+    --gold: #D4AF37;
+    --bg: #FAF8F3;
+    --surface: #ffffff;
+    --text: #17201C;
+    --text-muted: #5c6b64;
+    --border: #e4ddd0;
+    --danger: #c0392b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121815;
+      --surface: #1b2420;
+      --text: #f2efe8;
+      --text-muted: #a3ad a6;
+      --border: #2c3630;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121815;
+    --surface: #1b2420;
+    --text: #f2efe8;
+    --text-muted: #9aa6a0;
+    --border: #2c3630;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  a { color: inherit; }
+
+  /* ---------- Login screen ---------- */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px 28px; max-width: 360px; width: 100%;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  }
+  .login-card h1 { margin: 0 0 4px; font-size: 22px; color: var(--primary); }
+  .login-card p.sub { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
+  .field { margin-bottom: 14px; }
+  .field label { display:block; font-size: 13px; margin-bottom: 6px; color: var(--text-muted); }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 15px; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); }
+  .btn {
+    display: inline-flex; align-items:center; justify-content:center; gap:6px;
+    background: var(--primary); color: #fff; border: none; border-radius: 10px;
+    padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%;
+  }
+  .btn:hover { background: var(--primary-light); }
+  .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn.danger { background: var(--danger); }
+  .btn.small { width: auto; padding: 7px 12px; font-size: 13px; }
+  #loginError { color: var(--danger); font-size: 13px; margin-top: 10px; display:none; }
+
+  /* ---------- App shell ---------- */
+  #app { display: none; min-height: 100vh; }
+  header.topbar {
+    position: sticky; top:0; z-index: 10;
+    background: var(--primary); color: #fff;
+    padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header.topbar h2 { margin:0; font-size: 17px; }
+  header.topbar .user { font-size: 12px; opacity: 0.85; }
+  nav.tabs {
+    display: flex; gap: 4px; overflow-x: auto; background: var(--surface);
+    border-bottom: 1px solid var(--border); padding: 6px 10px;
+  }
+  nav.tabs button {
+    background: transparent; border: none; padding: 9px 14px; border-radius: 999px;
+    color: var(--text-muted); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  nav.tabs button.active { background: var(--primary); color: #fff; }
+  main { padding: 16px; max-width: 900px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; text-align:center; }
+  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--primary); }
+  .stat-card .label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .section-head { display:flex; align-items:center; justify-content:space-between; margin: 18px 0 10px; }
+  .section-head h3 { margin:0; font-size: 16px; }
+
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+  .item-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 12px 14px; display:flex; gap: 12px; align-items:flex-start;
+  }
+  .item-card img.thumb { width: 72px; height: 48px; object-fit: cover; border-radius: 8px; background: #ddd6c4; flex-shrink:0; }
+  .item-card .info { flex: 1; min-width: 0; }
+  .item-card .info .t { font-weight: 600; font-size: 14px; margin-bottom: 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item-card .info .m { font-size: 12px; color: var(--text-muted); }
+  .item-card .actions { display: flex; gap: 6px; flex-shrink:0; }
+  .chip { display:inline-block; font-size: 11px; background: rgba(212,175,55,0.18); color: #8a6d1f; padding: 2px 8px; border-radius: 999px; margin-top:4px; }
+  :root[data-theme="dark"] .chip, @media (prefers-color-scheme: dark) { }
+
+  .empty-state { text-align:center; padding: 40px 20px; color: var(--text-muted); }
+
+  .modal-overlay {
+    display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    align-items:flex-end; justify-content:center; z-index: 50;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background: var(--surface); width: 100%; max-width: 480px; border-radius: 20px 20px 0 0;
+    padding: 22px 20px calc(20px + env(safe-area-inset-bottom,0px));
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal h3 { margin: 0 0 16px; }
+  .form-row { display:flex; gap:10px; }
+  .form-row .field { flex: 1; }
+  .modal-actions { display:flex; gap: 10px; margin-top: 16px; }
+  .modal-actions .btn { width: auto; flex: 1; }
+
+  .toast {
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom,0px)); left: 50%;
+    transform: translateX(-50%); background: var(--primary); color:#fff;
+    padding: 10px 18px; border-radius: 999px; font-size: 13px; z-index: 100;
+    opacity:0; pointer-events:none; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+
+  .spin { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.4);
+    border-top-color:#fff; border-radius:50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-row { text-align:center; padding: 30px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Quran TV</h1>
+    <p class="sub">Admin Panel — sign in to continue</p>
+    <div class="field">
+      <label>Admin Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div id="loginError"></div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:16px;line-height:1.5;">
+      This account must be created manually in Firebase Console →
+      Authentication → Users → Add user, with the email/password
+      provider enabled.
+    </p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="topbar">
+    <h2>Quran TV Admin</h2>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="user" id="currentUserEmail"></span>
+      <button class="btn secondary small" onclick="doLogout()">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button data-tab="videos" onclick="switchTab('videos')">Videos</button>
+    <button data-tab="categories" onclick="switchTab('categories')">Categories</button>
+    <button data-tab="feedback" onclick="switchTab('feedback')">Feedback</button>
+    <button data-tab="users" onclick="switchTab('users')">Users</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="num" id="statVideos">—</div><div class="label">Videos</div></div>
+        <div class="stat-card"><div class="num" id="statCategories">—</div><div class="label">Categories</div></div>
+        <div class="stat-card"><div class="num" id="statFeedback">—</div><div class="label">Feedback</div></div>
+        <div class="stat-card"><div class="num" id="statUsers">—</div><div class="label">Users</div></div>
+      </div>
+      <div class="section-head"><h3>Recent Feedback</h3></div>
+      <div class="card-list" id="dashRecentFeedback"><div class="loading-row">Loading…</div></div>
+    </div>
+
+    <!-- VIDEOS -->
+    <div class="panel" id="panel-videos">
+      <div class="section-head">
+        <h3>Videos</h3>
+        <button class="btn small" onclick="openVideoModal()">+ Add Video</button>
+      </div>
+      <div class="card-list" id="videosList"><div class="loading-row">Loading…</div></div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="panel" id="panel-categories">
+      <div class="section-head">
+        <h3>Categories</h3>
+        <button class="btn small" onclick="openCategoryModal()">+ Add Category</button>
+      </div>
+      <div class="card-list" id="categoriesList"><div class="loading-row">Loading…</div></div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="panel" id="panel-feedback">
+      <div class="section-head"><h3>Feedback</h3></div>
+      <div class="card-list" id="feedbackList"><div class="loading-row">Loading…</div></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="panel" id="panel-users">
+      <div class="section-head"><h3>Users</h3></div>
+      <div class="card-list" id="usersList"><div class="loading-row">Loading…</div></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-overlay" id="videoModalOverlay">
+  <div class="modal">
+    <h3 id="videoModalTitle">Add Video</h3>
+    <input type="hidden" id="videoDocId">
+    <div class="field">
+      <label>YouTube URL or Video ID</label>
+      <input type="text" id="vYoutube" placeholder="https://youtube.com/watch?v=... or just the ID" oninput="autoFillThumb()">
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="vTitle" placeholder="e.g. Surah Yaseen — Full Recitation">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="vDesc" rows="3" placeholder="Short description"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Category</label>
+        <select id="vCategory"></select>
+      </div>
+      <div class="field">
+        <label>Duration</label>
+        <input type="text" id="vDuration" placeholder="e.g. 32:00">
+      </div>
+    </div>
+    <div class="field">
+      <label>Thumbnail URL (auto-filled from YouTube ID, editable)</label>
+      <input type="text" id="vThumb" placeholder="https://img.youtube.com/vi/VIDEO_ID/hqdefault.jpg">
+    </div>
+    <div class="field" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="vFeatured" style="width:auto;">
+      <label style="margin:0;">Featured video</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('videoModalOverlay')">Cancel</button>
+      <button class="btn" onclick="saveVideo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="categoryModalOverlay">
+  <div class="modal">
+    <h3 id="categoryModalTitle">Add Category</h3>
+    <input type="hidden" id="catDocId">
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="catName" placeholder="e.g. Quran">
+    </div>
+    <div class="field">
+      <label>Icon URL</label>
+      <input type="text" id="catIcon" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label>Order (lower = shown first)</label>
+      <input type="number" id="catOrder" placeholder="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('categoryModalOverlay')">Cancel</button>
+      <button class="btn" onclick="saveCategory()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="userModalOverlay">
+  <div class="modal">
+    <h3>User details</h3>
+    <div id="userModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('userModalOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============ FIREBASE SDK (compat, for simplicity in a single file) ============ -->
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+<script>
+/* =========================================================
+   1) PASTE YOUR FIREBASE WEB CONFIG BELOW
+   Firebase Console → Project Settings → General →
+   "Your apps" → Add app (</>) if you haven't already →
+   copy the firebaseConfig object here.
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId: "PASTE_YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let categoriesCache = [];
+
+/* ---------------- Auth ---------------- */
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  btn.innerHTML = '<span class="spin"></span>';
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(err => {
+      errEl.textContent = err.message.replace('Firebase: ', '');
+      errEl.style.display = 'block';
+    })
+    .finally(() => { btn.textContent = 'Sign In'; });
+}
+function doLogout() { auth.signOut(); }
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('currentUserEmail').textContent = user.email || '';
+    loadAll();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+/* ---------------- Tabs ---------------- */
+function switchTab(tab) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+}
+
+/* ---------------- Toast ---------------- */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------------- Modal helpers ---------------- */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ---------------- Load everything ---------------- */
+function loadAll() {
+  loadCategories();
+  loadVideos();
+  loadFeedback();
+  loadUsers();
+}
+
+/* ---------------- CATEGORIES ---------------- */
+function loadCategories() {
+  db.collection('videoCategories').orderBy('order').get().then(snap => {
+    categoriesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('statCategories').textContent = categoriesCache.length;
+
+    const list = document.getElementById('categoriesList');
+    const sel = document.getElementById('vCategory');
+    sel.innerHTML = categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+
+    if (categoriesCache.length === 0) {
+      list.innerHTML = '<div class="empty-state">No categories yet. Add one to get started.</div>';
+      return;
+    }
+    list.innerHTML = categoriesCache.map(c => `
+      <div class="item-card">
+        <img class="thumb" src="${esc(c.icon||'')}" onerror="this.style.visibility='hidden'">
+        <div class="info">
+          <div class="t">${esc(c.name)}</div>
+          <div class="m">order: ${c.order ?? '-'}</div>
+        </div>
+        <div class="actions">
+          <button class="btn secondary small" onclick="editCategory('${c.id}')">Edit</button>
+          <button class="btn danger small" onclick="deleteCategory('${c.id}','${esc(c.name)}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }).catch(err => showToast('Error loading categories: ' + err.message));
+}
+function openCategoryModal() {
+  document.getElementById('categoryModalTitle').textContent = 'Add Category';
+  document.getElementById('catDocId').value = '';
+  document.getElementById('catName').value = '';
+  document.getElementById('catIcon').value = '';
+  document.getElementById('catOrder').value = (categoriesCache.length + 1);
+  openModal('categoryModalOverlay');
+}
+function editCategory(id) {
+  const c = categoriesCache.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+  document.getElementById('catDocId').value = id;
+  document.getElementById('catName').value = c.name || '';
+  document.getElementById('catIcon').value = c.icon || '';
+  document.getElementById('catOrder').value = c.order ?? 1;
+  openModal('categoryModalOverlay');
+}
+function saveCategory() {
+  const id = document.getElementById('catDocId').value;
+  const data = {
+    name: document.getElementById('catName').value.trim(),
+    icon: document.getElementById('catIcon').value.trim(),
+    order: parseInt(document.getElementById('catOrder').value) || 0
+  };
+  if (!data.name) { showToast('Name is required'); return; }
+  const ref = id ? db.collection('videoCategories').doc(id) : db.collection('videoCategories').doc();
+  ref.set(data).then(() => {
+    showToast('Category saved');
+    closeModal('categoryModalOverlay');
+    loadCategories();
+  }).catch(err => showToast('Error: ' + err.message));
+}
+function deleteCategory(id, name) {
+  if (!confirm(`Delete category "${name}"? Videos in this category will remain but won't show under it.`)) return;
+  db.collection('videoCategories').doc(id).delete().then(() => {
+    showToast('Category deleted');
+    loadCategories();
+  });
+}
+
+/* ---------------- VIDEOS ---------------- */
+let videosCache = [];
+function loadVideos() {
+  db.collection('videos').get().then(snap => {
+    videosCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('statVideos').textContent = videosCache.length;
+
+    const list = document.getElementById('videosList');
+    if (videosCache.length === 0) {
+      list.innerHTML = '<div class="empty-state">No videos yet. Add your first one.</div>';
+      return;
+    }
+    list.innerHTML = videosCache.map(v => `
+      <div class="item-card">
+        <img class="thumb" src="${esc(v.thumbnailUrl||'')}" onerror="this.style.visibility='hidden'">
+        <div class="info">
+          <div class="t">${esc(v.title||'Untitled')}</div>
+          <div class="m">${esc(v.duration||'')} ${v.isFeatured ? '· ⭐ Featured' : ''}</div>
+          <span class="chip">${esc(v.category||'Uncategorized')}</span>
+        </div>
+        <div class="actions">
+          <button class="btn secondary small" onclick="editVideo('${v.id}')">Edit</button>
+          <button class="btn danger small" onclick="deleteVideo('${v.id}','${esc(v.title||'')}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }).catch(err => showToast('Error loading videos: ' + err.message));
+}
+function extractYoutubeId(input) {
+  input = input.trim();
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/,
+  ];
+  for (const p of patterns) { const m = input.match(p); if (m) return m[1]; }
+  if (/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
+  return '';
+}
+function autoFillThumb() {
+  const id = extractYoutubeId(document.getElementById('vYoutube').value);
+  if (id) document.getElementById('vThumb').value = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+}
+function openVideoModal() {
+  document.getElementById('videoModalTitle').textContent = 'Add Video';
+  document.getElementById('videoDocId').value = '';
+  ['vYoutube','vTitle','vDesc','vDuration','vThumb'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('vFeatured').checked = false;
+  if (categoriesCache.length === 0) showToast('Add a category first');
+  openModal('videoModalOverlay');
+}
+function editVideo(id) {
+  const v = videosCache.find(x => x.id === id);
+  if (!v) return;
+  document.getElementById('videoModalTitle').textContent = 'Edit Video';
+  document.getElementById('videoDocId').value = id;
+  document.getElementById('vYoutube').value = v.youtubeVideoId || '';
+  document.getElementById('vTitle').value = v.title || '';
+  document.getElementById('vDesc').value = v.description || '';
+  document.getElementById('vCategory').value = v.category || '';
+  document.getElementById('vDuration').value = v.duration || '';
+  document.getElementById('vThumb').value = v.thumbnailUrl || '';
+  document.getElementById('vFeatured').checked = !!v.isFeatured;
+  openModal('videoModalOverlay');
+}
+function saveVideo() {
+  const id = document.getElementById('videoDocId').value;
+  const rawYoutube = document.getElementById('vYoutube').value;
+  const youtubeId = extractYoutubeId(rawYoutube);
+  const title = document.getElementById('vTitle').value.trim();
+  if (!youtubeId) { showToast('Could not read a valid YouTube video ID'); return; }
+  if (!title) { showToast('Title is required'); return; }
+  const data = {
+    title,
+    description: document.getElementById('vDesc').value.trim(),
+    youtubeVideoId: youtubeId,
+    thumbnailUrl: document.getElementById('vThumb').value.trim() || `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+    category: document.getElementById('vCategory').value,
+    duration: document.getElementById('vDuration').value.trim(),
+    isFeatured: document.getElementById('vFeatured').checked
+  };
+  const ref = id ? db.collection('videos').doc(id) : db.collection('videos').doc();
+  ref.set(data).then(() => {
+    showToast('Video saved');
+    closeModal('videoModalOverlay');
+    loadVideos();
+  }).catch(err => showToast('Error: ' + err.message));
+}
+function deleteVideo(id, title) {
+  if (!confirm(`Delete video "${title}"?`)) return;
+  db.collection('videos').doc(id).delete().then(() => {
+    showToast('Video deleted');
+    loadVideos();
+  });
+}
+
+/* ---------------- FEEDBACK ---------------- */
+function loadFeedback() {
+  db.collection('feedback').orderBy('submittedAt', 'desc').get().then(snap => {
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('statFeedback').textContent = items.length;
+
+    const list = document.getElementById('feedbackList');
+    const dash = document.getElementById('dashRecentFeedback');
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty-state">No feedback submitted yet.</div>';
+      dash.innerHTML = '<div class="empty-state">No feedback yet.</div>';
+      return;
+    }
+    const render = (arr) => arr.map(f => `
+      <div class="item-card">
+        <div class="info">
+          <div class="t">${esc(f.message || '(no message)')}</div>
+          <div class="m">${f.contactInfo ? 'Contact: ' + esc(f.contactInfo) + ' · ' : ''}${formatTs(f.submittedAt)}</div>
+        </div>
+        <div class="actions">
+          <button class="btn danger small" onclick="deleteFeedback('${f.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+    list.innerHTML = render(items);
+    dash.innerHTML = render(items.slice(0, 5));
+  }).catch(err => showToast('Error loading feedback: ' + err.message));
+}
+function deleteFeedback(id) {
+  if (!confirm('Delete this feedback entry?')) return;
+  db.collection('feedback').doc(id).delete().then(() => { showToast('Deleted'); loadFeedback(); });
+}
+
+/* ---------------- USERS ---------------- */
+function loadUsers() {
+  db.collection('users').get().then(snap => {
+    const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('statUsers').textContent = users.length;
+
+    const list = document.getElementById('usersList');
+    if (users.length === 0) {
+      list.innerHTML = '<div class="empty-state">No users yet.</div>';
+      return;
+    }
+    list.innerHTML = users.map(u => `
+      <div class="item-card">
+        <div class="info">
+          <div class="t">${esc(u.displayName || 'Unnamed user')}</div>
+          <div class="m">${esc(u.id)}</div>
+          <div class="m">Updated: ${formatTs(u.updatedAt)}</div>
+        </div>
+        <div class="actions">
+          <button class="btn secondary small" onclick="viewUser('${u.id}')">View Saved</button>
+          <button class="btn danger small" onclick="deleteUser('${u.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }).catch(err => showToast('Error loading users: ' + err.message));
+}
+function viewUser(uid) {
+  const body = document.getElementById('userModalBody');
+  body.innerHTML = '<div class="loading-row">Loading saved videos…</div>';
+  openModal('userModalOverlay');
+  db.collection('users').doc(uid).collection('saved').get().then(snap => {
+    if (snap.empty) {
+      body.innerHTML = '<p style="color:var(--text-muted);">This user has no saved videos.</p>';
+      return;
+    }
+    body.innerHTML = '<div class="card-list">' + snap.docs.map(d => {
+      const v = d.data();
+      return `<div class="item-card"><div class="info"><div class="t">${esc(v.title || d.id)}</div></div></div>`;
+    }).join('') + '</div>';
+  }).catch(err => { body.innerHTML = 'Error: ' + esc(err.message); });
+}
+function deleteUser(uid) {
+  if (!confirm('Delete this user\'s profile and saved-videos data? This cannot be undone. (Note: this does not block them from using the app again under a new anonymous session.)')) return;
+  db.collection('users').doc(uid).collection('saved').get().then(snap => {
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(db.collection('users').doc(uid));
+    return batch.commit();
+  }).then(() => { showToast('User deleted'); loadUsers(); })
+    .catch(err => showToast('Error: ' + err.message));
+}
+
+/* ---------------- Utils ---------------- */
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function formatTs(ts) {
+  if (!ts) return '';
+  let date;
+  if (ts.toDate) date = ts.toDate();
+  else if (typeof ts === 'number') date = new Date(ts);
+  else return '';
+  return date.toLocaleString();
+}
+</script>
+</body>
+</html>
